@@ -6,17 +6,18 @@ if ! command -v systemctl >/dev/null 2>&1; then
     exit 0
 fi
 
-if ! systemctl --global enable openskydimo.service; then
-    echo "Warning: failed to enable openskydimo.service globally." >&2
-fi
-
+# Clean up the old per-user service from earlier versions, if present.
+systemctl --global disable openskydimo.service >/dev/null 2>&1 || true
 for dir in /run/user/*; do
     [ -d "$dir" ] || continue
     uid=$(basename "$dir")
     user=$(id -nu "$uid" 2>/dev/null) || continue
-    if ! runuser -u "$user" -- env XDG_RUNTIME_DIR="$dir" systemctl --user start openskydimo.service; then
-        echo "Warning: failed to start openskydimo.service for user $user." >&2
-    fi
+    runuser -u "$user" -- env XDG_RUNTIME_DIR="$dir" systemctl --user stop openskydimo.service >/dev/null 2>&1 || true
 done
+
+systemctl daemon-reload || true
+if ! systemctl enable --now openskydimo.service; then
+    echo "Warning: failed to enable/start openskydimo.service." >&2
+fi
 
 exit 0
