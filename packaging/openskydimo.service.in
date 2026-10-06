@@ -1,6 +1,6 @@
 [Unit]
 Description=OpenSkydimo Daemon
-After=default.target
+After=local-fs.target
 
 [Service]
 Type=simple
@@ -8,5 +8,20 @@ ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/openskydimo-daemon
 Restart=on-failure
 RestartSec=2
 
+# Socket: /run/openskydimo/openskydimo.sock   Config: /var/lib/openskydimo/config.json
+RuntimeDirectory=openskydimo
+RuntimeDirectoryMode=0755
+StateDirectory=openskydimo
+
+# Runs as root so it can open the serial device regardless of which group
+# (dialout/uucp) owns it on the distro, but is confined to USB serial devices.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+DevicePolicy=closed
+DeviceAllow=char-ttyUSB rw
+DeviceAllow=char-ttyACM rw
+
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
