@@ -6,6 +6,8 @@
 #include <cstring>
 #include <stdexcept>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/un.h>
 #include <unistd.h>
 #include <utility>
@@ -15,8 +17,10 @@ using namespace ipc;
 
 std::atomic<bool> UnixSocketServer::s_shutdownRequested{false};
 
-UnixSocketServer::UnixSocketServer(std::string socketPath, const int backlogSize, const int bufferSize)
-    : m_socketPath(std::move(socketPath)), m_serverFd(-1), m_backlog(backlogSize), m_bufferSize(bufferSize)
+UnixSocketServer::UnixSocketServer(std::string socketPath, const int backlogSize, const int bufferSize,
+                                   const mode_t m_socketPermissionBits, const int clientTimeoutSeconds)
+    : m_socketPath(std::move(socketPath)), m_serverFd(-1), m_backlog(backlogSize), m_bufferSize(bufferSize),
+      m_socketPermissionBits(m_socketPermissionBits), m_clientTimeoutSeconds(clientTimeoutSeconds)
 {
     m_serverFd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (m_serverFd == -1)
@@ -39,6 +43,10 @@ void UnixSocketServer::Start()
     if (bind(m_serverFd, reinterpret_cast<sockaddr*>(&m_address), sizeof(m_address)) == -1)
         throw std::runtime_error("Failed to bind socket");
 
+    // Let users other than the daemon's own connect (there is one daemon for all users).
+    if (chmod(m_socketPath.c_str(), m_socketPermissionBits) == -1)
+        throw std::runtime_error("Failed to set socket permissions");
+
     if (listen(m_serverFd, m_backlog) == -1)
         throw std::runtime_error("Failed to listen on socket");
 
@@ -60,6 +68,12 @@ void UnixSocketServer::Start()
 
             OnFailedClientConnection();
             continue;
+        }
+
+        if (m_clientTimeoutSeconds > 0)
+        {
+            const timeval timeout{.tv_sec = m_clientTimeoutSeconds, .tv_usec = 0};
+            setsockopt(clientFd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
         }
 
         m_clientFds.push_back(clientFd);

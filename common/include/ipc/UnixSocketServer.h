@@ -19,7 +19,8 @@ private:
     };
 
 public:
-    UnixSocketServer(std::string socketPath, int backlogSize, int bufferSize);
+    UnixSocketServer(std::string socketPath, int backlogSize, int bufferSize, mode_t m_socketPermissionBits = 0666,
+                     int clientTimeoutSeconds = 5);
     virtual ~UnixSocketServer();
 
     void Start();
@@ -50,6 +51,8 @@ private:
     sockaddr_un m_address{};
     int m_backlog;
     int m_bufferSize;
+    mode_t m_socketPermissionBits;
+    int m_clientTimeoutSeconds;
     std::vector<int> m_clientFds;
 };
 

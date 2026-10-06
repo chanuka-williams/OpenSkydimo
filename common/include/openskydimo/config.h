@@ -1,35 +1,30 @@
 #pragma once
 #include <cstdlib>
 #include <filesystem>
-#include <stdexcept>
 #include <string>
 
 namespace openskydimo
 {
 
-inline std::filesystem::path GetRuntimeDir()
-{
-    if (const char* xdgRuntimeDir = std::getenv("XDG_RUNTIME_DIR"); xdgRuntimeDir && *xdgRuntimeDir)
-        return xdgRuntimeDir;
-
-    return "/tmp";
-}
+inline constexpr auto DEFAULT_SOCKET_PATH = "/run/openskydimo/openskydimo.sock";
 
 inline std::string GetSocketPath()
 {
-    return (GetRuntimeDir() / "openskydimo.sock").string();
+    if (const char* override = std::getenv("OPENSKYDIMO_SOCKET"); override && *override)
+        return override;
+
+    return DEFAULT_SOCKET_PATH;
 }
 
 inline std::filesystem::path GetConfigPath()
 {
-    if (const char* xdgConfigHome = std::getenv("XDG_CONFIG_HOME"); xdgConfigHome && *xdgConfigHome)
-        return std::filesystem::path(xdgConfigHome) / "openskydimo" / "config.json";
+    if (const char* override = std::getenv("OPENSKYDIMO_CONFIG"); override && *override)
+        return override;
 
-    const char* home = std::getenv("HOME");
-    if (!home || !*home)
-        throw std::runtime_error("Neither XDG_CONFIG_HOME nor HOME is set");
+    if (const char* stateDir = std::getenv("STATE_DIRECTORY"); stateDir && *stateDir)
+        return std::filesystem::path(stateDir) / "config.json";
 
-    return std::filesystem::path(home) / ".config" / "openskydimo" / "config.json";
+    return "/var/lib/openskydimo/config.json";
 }
 
 } // namespace openskydimo
